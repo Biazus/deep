@@ -22,6 +22,7 @@ train_split, val_split = 0.7, 0.15
 
 
 def get_categories(root, exclude):
+	# E.g. ['101_ObjectCategories/cat', '101_ObjectCategories/dog', ...]
 	categories = [x[0] for x in os.walk(root) if x[0]][1:]
 	return [c for c in categories if c not in [os.path.join(root, e) for e in exclude]]
 
@@ -29,7 +30,7 @@ def get_image(path):
 	# helper function to load image and return it as input vector
     img = image.load_img(path, target_size=(224, 224))
     x = image.img_to_array(img)
-    x = np.expand_dims(x, axis=0)
+    x = np.expand_dims(x, axis=0)  # add batch dimension to array ( e.g. [1, 255, 255, 3])
     x = preprocess_input(x)
     return img, x
 
@@ -48,22 +49,23 @@ def build(categories):
 def split_dataset(data, num_classes, training=0.7, validation=0.15, test=0.15):
 	if sum([training, validation, test]) != 1:
 		raise ValueError("Sum of subsets should be 1")
+
 	idx_val = int(train_split * len(data))
 	idx_test = int((train_split + val_split) * len(data))
 	train = data[:idx_val]
 	val = data[idx_val:idx_test]
 	test = data[idx_test:]
+
 	x_train, y_train = np.array([t["x"] for t in train]), [t["y"] for t in train]
 	x_val, y_val = np.array([t["x"] for t in val]), [t["y"] for t in val]
 	x_test, y_test = np.array([t["x"] for t in test]), [t["y"] for t in test]
 
-	# Pre fprocess to float32 and between 0 and 1
+	# Converts to float32 and normalize between 0 and 1 with float division by 255
 	x_train = x_train.astype('float32') / 255.
 	x_val = x_val.astype('float32') / 255.
 	x_test = x_test.astype('float32') / 255.
 
-	# convert labels to one-hot vectors
-
+	# convert labels to one-hot vectors (e.g. [0, 1, 2] would convert to [[1. 0. 0.], [0. 1. 0.], [0. 0. 1.]] )
 	y_train = keras.utils.to_categorical(y_train, num_classes)
 	y_val = keras.utils.to_categorical(y_val, num_classes)
 	y_test = keras.utils.to_categorical(y_test, num_classes)
