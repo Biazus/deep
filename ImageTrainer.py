@@ -54,7 +54,7 @@ class ImageTrainer:
         for c, category in enumerate(categories):
             images = [os.path.join(dp, f) for dp, dn, filenames
                       in os.walk(category) for f in filenames
-                      if os.path.splitext(f)[1].lower() in ['.jpg','.png','.jpeg']]
+                      if os.path.splitext(f)[1].lower() in ['.jpg','.png','.jpeg', '.jfif']]
             for img_path in images:
                 img, x = self.get_image(img_path)
                 data.append({'x':np.array(x[0]), 'y':c})
@@ -108,6 +108,38 @@ class ImageTrainer:
             "x_test": x_test,
             "y_test": y_test
         }
+
+    def build_model_small(self, num_classes: int) -> Any:
+        """
+        A smaller model
+        :return:
+        """
+        self.model = Sequential()
+        self.model.add(Conv2D(32, (3, 3), input_shape=self.vectors["x_train"].shape[1:]))
+        self.model.add(Activation('relu'))
+        self.model.add(MaxPooling2D(pool_size=(2, 2)))
+
+        # deeper layers
+        self.model.add(Conv2D(64, (3, 3)))
+        self.model.add(Activation('relu'))
+        self.model.add(MaxPooling2D(pool_size=(2, 2)))
+
+        self.model.add(Dropout(0.25))
+
+        # create vector of features from last conv
+        self.model.add(Flatten())
+
+        self.model.add(Dense(256))
+        self.model.add(Activation('relu'))
+
+        # avoid strong neurons to dominate results, reducing overfitting
+        self.model.add(Dropout(0.5))
+
+        # last layer. Default is Dense with softmax
+        self.model.add(Dense(num_classes))
+        self.model.add(Activation('softmax'))
+
+        self.model.summary()
 
     def build_model(self, num_classes: int) -> Any:
         """
@@ -183,3 +215,6 @@ class ImageTrainer:
         loss, accuracy = self.model.evaluate(self.vectors["x_test"], self.vectors["y_test"], verbose=0)
         print('Test loss:', loss)
         print('Test accuracy:', accuracy)
+
+    def transfer_learning(self, network)->None:
+        network.layers[0].set_weights(self.model.get_layer('fc2').get_weights())
